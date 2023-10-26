@@ -21,6 +21,8 @@ set RAM[313] 305,
 set RAM[314] 300,
 set RAM[315] 3010,
 set RAM[316] 4010,
+set RAM[317] 0,
+set RAM[318] 0,
 
 repeat 300 {
   ticktock;
