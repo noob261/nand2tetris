@@ -5,8 +5,8 @@ DOUBLE_QUOTE = "\""
 COMMENTS = ("/*", "/**", "//", "*")
 SYMBOLS = ["{", "}", "(", ")", "[", "]", ".", ",", ";",
            "+", "-", "*", "/", "&", "|", "<", ">", "=", "~"]
-KEYWORDS = ["class", "constructor", "function", "method", "field", "static", "var", "int", "char", "boolean", "void",
-            "true", "false", "null", "this", "let", "do", "if", "else", "while", "return"]
+KEYWORDS = ["class", "method", "function", "constructor",  "int", "boolean", "char",  "void", "var", "static",  "field", 
+            "let", "do", "if", "else", "while", "return", "true", "false", "null", "this"]
 XML_ESCAPE = {"<": "&lt;", ">": "&gt;", "\"": "&quot;", "&": "&amp;"}
 
 
@@ -70,8 +70,8 @@ class JackTokenizer:
     def _tokenize(self) -> Type[list]:
         tokens = []
         for line in self.lines:
-            i = j = 0
-            while i < len(line):
+            j = 0
+            while j < len(line):
                 quote = False
                 cur = []
                 while j < len(line):
@@ -89,7 +89,7 @@ class JackTokenizer:
                             break
                         # symbol
                         if line[j] in SYMBOLS:
-                            #append single symbol
+                            # append single symbol
                             if not cur:
                                 cur.append(line[j])
                                 j += 1
@@ -101,7 +101,6 @@ class JackTokenizer:
                     j += 1
                 if cur:
                     tokens.append("".join(cur))
-                i = j
         return tokens
 
     def hasMoreTokens(self) -> bool:
@@ -109,6 +108,12 @@ class JackTokenizer:
 
     def advance(self) -> None:
         self.curToken = self.tokens.pop(0)
+    
+    def peek(self):
+        if self.hasMoreTokens():
+            return self.tokens[0]
+        else:
+            raise Exception()
 
     def tokenType(self) -> Type[TokenType]:
         tk = self.curToken
@@ -127,7 +132,7 @@ class JackTokenizer:
         return TokenType.IDENTIFIER
 
     def keyWord(self) -> Type[KeyWord]:
-        return KEYWORD_MAP[self.curToken]
+        return self.curToken
 
     def symbol(self) -> str:
         return XML_ESCAPE.get(self.curToken, self.curToken)
@@ -140,10 +145,3 @@ class JackTokenizer:
 
     def stringVal(self) -> str:
         return self.curToken
-    
-
-# if __name__ == "__main__":
-#     jt = JackTokenizer(r"E:\coding\myproject\courses\nand2tetris\projects\10\ArrayTest\Main.jack")
-#     while jt.hasMoreTokens():
-#         jt.advance()
-#         print(jt.symbol())

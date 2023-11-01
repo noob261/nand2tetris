@@ -15,7 +15,7 @@ ARITHMETIC_OPS.add("not")
 
 
 def getComparisonCode(cond, op, idx):
-    return f'@SP\nAM=M-1\nD=M\n@SP\nAM=M-1\n{cond}\n@COND{idx}\nD;{op}\n@SP\nA=M\nM=0\n@SP\nM=M+1\n@ELSE{idx}\n0;JMP\n(COND{idx})\n@SP\nA=M\nM=-1\n@SP\nM=M+1\n(ELSE{idx})\n'
+    return f"@SP\nAM=M-1\nD=M\n@SP\nAM=M-1\n{cond}\n@COND{idx}\nD;{op}\n@SP\nA=M\nM=0\n@SP\nM=M+1\n@ELSE{idx}\n0;JMP\n(COND{idx})\n@SP\nA=M\nM=-1\n@SP\nM=M+1\n(ELSE{idx})\n"
 
 
 def getBinOpCode(op):
@@ -31,7 +31,9 @@ def getMainSegPushCode(seg):
 
 
 def getMainSegPopCode(seg, i):
-    return f"@{i}\nD=A\n@{seg}\nD=D+M\n@i\nM=D\n@SP\nM=M-1\n@SP\nA=M\nD=M\n@i\nA=M\nM=D\n"
+    return (
+        f"@{i}\nD=A\n@{seg}\nD=D+M\n@i\nM=D\n@SP\nM=M-1\n@SP\nA=M\nD=M\n@i\nA=M\nM=D\n"
+    )
 
 
 def getPointerPushCode(base):
@@ -44,7 +46,8 @@ def getPointerPopCode(base):
 
 def getRestoreCode(idx, seg):
     return f"@{idx}\nD=A\n@R13\nA=M-D\nD=M\n@{seg}\nM=D\n"
-    #return f"@{num}\nD=A\n@{argCnt}\nD=D+A\n@ARG\nA=M+D\nD=M\n@{seg}\nM=D\n"
+    # return f"@{num}\nD=A\n@{argCnt}\nD=D+A\n@ARG\nA=M+D\nD=M\n@{seg}\nM=D\n"
+
 
 def saveSegBeforeCall(seg):
     return f"@{seg}\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n"
@@ -75,7 +78,7 @@ class Parser:
                 continue
             # remove inline comments
             if COMMENT in line:
-                line = line[:line.index(COMMENT)]
+                line = line[: line.index(COMMENT)]
                 line = line.strip()
             tmp.append(line)
         self.lines = tmp
@@ -118,7 +121,12 @@ class Parser:
             return self.curArr[1]
 
     def getSecondArg(self, tp) -> int:
-        if tp == CommandType.C_PUSH or tp == CommandType.C_POP or tp == CommandType.C_FUNCTION or tp == CommandType.C_CALL:
+        if (
+            tp == CommandType.C_PUSH
+            or tp == CommandType.C_POP
+            or tp == CommandType.C_FUNCTION
+            or tp == CommandType.C_CALL
+        ):
             return int(self.curArr[2])
 
 
@@ -180,11 +188,9 @@ class CodeWriter:
             self.f.write(getMainSegPushCode("THAT"))
         elif firstArg == "temp":
             self.f.write(f"@{i}\n")
-            self.f.write(
-                f"@{i}\nD=A\n@5\nD=D+A\nA=D\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n")
+            self.f.write(f"@{i}\nD=A\n@5\nD=D+A\nA=D\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n")
         elif firstArg == "static":
-            self.f.write(
-                f"@{self.filename}.{i}\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n")
+            self.f.write(f"@{self.filename}.{i}\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n")
         elif firstArg == "pointer":
             if i == 0:
                 self.f.write(getPointerPushCode("THIS"))
@@ -206,7 +212,8 @@ class CodeWriter:
             self.f.write(getMainSegPopCode("THAT", i))
         elif firstArg == "temp":
             self.f.write(
-                f"@{i}\nD=A\n@5\nD=D+A\n@i\nM=D\n@SP\nM=M-1\n@SP\nA=M\nD=M\n@i\nA=M\nM=D\n")
+                f"@{i}\nD=A\n@5\nD=D+A\n@i\nM=D\n@SP\nM=M-1\n@SP\nA=M\nD=M\n@i\nA=M\nM=D\n"
+            )
         elif firstArg == "static":
             self.f.write(f"@SP\nM=M-1\nA=M\nD=M\n@{self.filename}.{i}\nM=D\n")
         elif firstArg == "pointer":
@@ -238,32 +245,33 @@ class CodeWriter:
 
     def writeFunction(self) -> None:
         self.argCnt = self.parser.getSecondArg(CommandType.C_FUNCTION)
-        self.f.write(
-            f"({self.parser.getFirstArg(CommandType.C_FUNCTION)})\n")
-        #push nVars 0 values (initializes the local variables to 0)
+        self.f.write(f"({self.parser.getFirstArg(CommandType.C_FUNCTION)})\n")
+        # push nVars 0 values (initializes the local variables to 0)
         if self.isDir and self.argCnt:
-            self.f.write(f"@0\nD=A\n@i\nM=D\n@{self.argCnt}\nD=A\n@j\nM=D\n(LCL_LOOP${self.retCounter})\n@i\nD=M\n@j\nD=M-D\n@LCL_OUT_LOOP${self.retCounter}\nD;JEQ\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n@i\nM=M+1\n@LCL_LOOP${self.retCounter}\n0;JMP\n(LCL_OUT_LOOP${self.retCounter})\n")
+            self.f.write(
+                f"@0\nD=A\n@i\nM=D\n@{self.argCnt}\nD=A\n@j\nM=D\n(LCL_LOOP${self.retCounter})\n@i\nD=M\n@j\nD=M-D\n@LCL_OUT_LOOP${self.retCounter}\nD;JEQ\n@0\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n@i\nM=M+1\n@LCL_LOOP${self.retCounter}\n0;JMP\n(LCL_OUT_LOOP${self.retCounter})\n"
+            )
 
     def writeCall(self) -> None:
         self.argCnt = self.parser.getSecondArg(CommandType.C_CALL)
         retLabel = f"{self.filename}$ret.{self.retCounter}"
         self.f.write(f"@{retLabel}\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n")
-        
+
         self.f.write(saveSegBeforeCall("LCL"))
         self.f.write(saveSegBeforeCall("ARG"))
         self.f.write(saveSegBeforeCall("THIS"))
         self.f.write(saveSegBeforeCall("THAT"))
-        #ARG = SP – 5 – nArgs // Repositions ARG
+        # ARG = SP – 5 – nArgs // Repositions ARG
         self.f.write(f"@5\nD=A\n@{self.argCnt}\nD=D+A\n@SP\nD=M-D\n@ARG\nM=D\n")
-        #LCL = SP // Repositions LCL
+        # LCL = SP // Repositions LCL
         self.f.write("@SP\nD=M\n@LCL\nM=D\n")
-        #Generates and pushes this label
-    
+        # Generates and pushes this label
+
         self.retCounter += 1
-        #Transfers control to the callee
+        # Transfers control to the callee
         funcName = self.parser.getFirstArg(CommandType.C_CALL)
         self.f.write(f"@{funcName}\n0;JMP\n")
-        #Injects this label into the code
+        # Injects this label into the code
         self.f.write(f"({retLabel})\n")
 
     def writeReturn(self) -> None:
@@ -318,7 +326,7 @@ class Main:
         filepath = sys.argv[1]
 
         isFile = filepath.endswith(".vm")
-        
+
         if isFile:
             destpath = filepath.replace(".vm", ".asm")
             parser = Parser(filepath)
@@ -328,19 +336,20 @@ class Main:
             codeWriter.setFileName(filename[:-3])
             self.translateSingleVm(codeWriter, parser)
         else:
-            dirname = filepath[filepath.rindex("\\") + 1:]
+            dirname = filepath[filepath.rindex("\\") + 1 :]
             destpath = f"{filepath}\{dirname}.asm"
             codeWriter = CodeWriter(destpath, True)
             for entry in os.scandir(filepath):
                 entryPath = entry.path
-                if not entryPath.endswith(".vm"): continue
+                if not entryPath.endswith(".vm"):
+                    continue
                 parser = Parser(entryPath)
                 codeWriter.setParser(parser)
                 filename = os.path.basename(entryPath)
                 codeWriter.setFileName(filename[:-3])
                 self.translateSingleVm(codeWriter, parser)
 
-        #codeWriter.writeEnd()
+        # codeWriter.writeEnd()
         codeWriter.close()
 
 

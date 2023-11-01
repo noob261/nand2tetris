@@ -1,7 +1,8 @@
-from JackTokenizer import JackTokenizer, TokenType
+from jackTokenizer import JackTokenizer, TokenType
 
 if __name__ == "__main__":
-    import sys, os
+    import sys
+    import os
     filepath = sys.argv[1]
     jt = JackTokenizer(filepath)
     parts = filepath.split(os.sep)
@@ -9,7 +10,7 @@ if __name__ == "__main__":
     i = parts[-1].index(".")
     parts[-1] = parts[-1][:i] + "T" + ".xml"
     outdir = os.path.join(*parts[:-1])
-    
+
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -27,6 +28,7 @@ if __name__ == "__main__":
             elif tktp == TokenType.INT_CONST:
                 f.write(f"<integerConstant> {jt.intVal()} </integerConstant>")
             elif tktp == TokenType.STRING_CONST:
-                f.write(f"<stringConstant> {jt.stringVal()[1:-1]} </stringConstant>")  
+                f.write(
+                    f"<stringConstant> {jt.stringVal()[1:-1]} </stringConstant>")
             f.write("\n")
-        f.write("</tokens>\n")              
+        f.write("</tokens>\n")
