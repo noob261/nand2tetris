@@ -27,6 +27,17 @@ def setSymbol(p, text):
     return createChild(p, "symbol", text)
 
 
+def setInteger(p, text):
+    return createChild(p, "integerConstant", text)
+
+
+def setStr(p, text):
+    return createChild(p, "stringConstant", text)
+
+
+OPS = ["+", "-", "*", "/", "&", "<", ">", "=", "|", "~"]
+
+
 class CompilationEngine:
     def __init__(self, jt: Type[JackTokenizer], outfilepath) -> None:
         self.jt = jt
@@ -152,7 +163,7 @@ class CompilationEngine:
         statEle = setDefault(p, "statements")
         cnt = 0
         while self.jt.hasMoreTokens():
-            if not cnt:   #process vardec
+            if not cnt:  # process vardec
                 if self.jt.tokenType() != TokenType.KEYWORD:
                     self.jt.advance()
             else:
@@ -182,6 +193,8 @@ class CompilationEngine:
                     self.compileExpression(lsEle)
                     setSymbol(lsEle, ";")
                     return
+                elif symbol == "[":  # varname[expression]
+                    self.compileExpression(lsEle)
 
     def compileIf(self, p):
         ifEle = setDefault(p, "ifStatement")
@@ -199,16 +212,15 @@ class CompilationEngine:
                 elif symbol == "{":
                     self.compileStatements(ifEle)
                     setSymbol(ifEle, "}")
-                    #check if 'else' condition exists
+                    # check if 'else' condition exists
                     if self.jt.peek() == "else":
                         self.jt.advance()
                         setKw(ifEle, self.jt.keyWord())
                         self.jt.advance()
-                        setSymbol(ifEle, self.jt.symbol()) #{
+                        setSymbol(ifEle, self.jt.symbol())  # {
                         self.compileStatements(ifEle)
                         setSymbol(ifEle, "}")
                     return
-
 
     def compileWhile(self, p):
         whileEle = setDefault(p, "whileStatement")
@@ -227,7 +239,6 @@ class CompilationEngine:
                     self.compileStatements(whileEle)
                     setSymbol(whileEle, "}")
                     return
-
 
     def compileDo(self, p):
         doEle = setDefault(p, "doStatement")
@@ -258,15 +269,53 @@ class CompilationEngine:
         expEle = setDefault(p, "expression")
         self.compileTerm(expEle, flag)
 
-    def compileTerm(self, p, flag):
+        # term (op term)*
+        if self.jt.peek() in OPS:
+            self.jt.advance()
+            # print(f"[{self.jt.symbol()}]")
+            setSymbol(expEle, self.jt.symbol())
+            self.compileTerm(expEle, True)
+
+    def compileTerm(self, p, flag=True):
+        # term (op term)*
         termEle = setDefault(p, "term")
         if flag:
             self.jt.advance()
         tktp = self.jt.tokenType()
         if tktp == TokenType.IDENTIFIER:
             setIdentifier(termEle, self.jt.identifier())
+            # subroutine call
+            if self.jt.peek() == ".":
+                self.jt.advance()  # "."
+                setSymbol(termEle, self.jt.symbol())
+                self.jt.advance()  # "subroutine name"
+                setIdentifier(termEle, self.jt.identifier())
+                self.jt.advance()  # "("
+                setSymbol(termEle, self.jt.symbol())
+                self.compileExpressionList(termEle)
+                setSymbol(termEle, ")")
+            elif self.jt.peek() == "[":  # varname[expression]
+                self.jt.advance()  # "["
+                setSymbol(termEle, self.jt.identifier())
+                self.compileExpression(termEle)
+                self.jt.advance()
+                setSymbol(termEle, self.jt.identifier())
         elif tktp == TokenType.KEYWORD:
             setKw(termEle, self.jt.keyWord())
+        elif tktp == TokenType.INT_CONST:
+            setInteger(termEle, self.jt.intVal())
+        elif tktp == TokenType.STRING_CONST:
+            setStr(termEle, self.jt.stringVal()[1:-1])  # remove double quote
+        elif tktp == TokenType.SYMBOL:
+            symbol = self.jt.symbol()
+            if symbol == "(":  # (expression)
+                setSymbol(termEle, symbol)
+                self.compileExpression(termEle)
+                self.jt.advance()
+                setSymbol(termEle, self.jt.symbol())
+            elif symbol in OPS:
+                setSymbol(termEle, symbol)
+                self.compileTerm(termEle)
 
     def compileExpressionList(self, p) -> int:
         exprLsEle = setDefault(p, "expressionList")
@@ -276,7 +325,12 @@ class CompilationEngine:
             if tktp == TokenType.IDENTIFIER or tktp == TokenType.KEYWORD:
                 self.compileExpression(exprLsEle, False)
             elif tktp == TokenType.SYMBOL:
-                if self.jt.symbol() == ")":
+                symbol = self.jt.symbol()
+                if symbol == ")":
                     break
-                else:
+                elif symbol == "(":
+                    self.compileExpression(exprLsEle, False)
+                else:  # ","
                     setSymbol(exprLsEle, self.jt.symbol())
+            elif tktp == TokenType.INT_CONST or tktp == TokenType.STRING_CONST:
+                self.compileExpression(exprLsEle, False)

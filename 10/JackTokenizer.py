@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Type
 
 DOUBLE_QUOTE = "\""
-COMMENTS = ("/*", "/**", "//", "*")
+COMMENTS = ("/*", "/**", "//")
 SYMBOLS = ["{", "}", "(", ")", "[", "]", ".", ",", ";",
            "+", "-", "*", "/", "&", "|", "<", ">", "=", "~"]
 KEYWORDS = ["class", "method", "function", "constructor",  "int", "boolean", "char",  "void", "var", "static",  "field", 
@@ -57,8 +57,9 @@ class JackTokenizer:
 
         for line in lines:
             line = line.strip()
-            if line.startswith(COMMENTS) or not line:
+            if not line or line.startswith(COMMENTS) or line.startswith("*"):
                 continue
+
             # remove inline comments
             for comment in COMMENTS:
                 if comment in line:
@@ -135,7 +136,7 @@ class JackTokenizer:
         return self.curToken
 
     def symbol(self) -> str:
-        return XML_ESCAPE.get(self.curToken, self.curToken)
+        return self.curToken
 
     def identifier(self) -> str:
         return self.curToken
